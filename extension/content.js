@@ -38,6 +38,8 @@ async function fetchConfigAndInitialize() {
     popUp.style.border = "1px solid black";
     popUp.style.padding = "10px";
     popUp.style.boxShadow = "0px 0px 10px rgba(0, 0, 0, 0.5)";
+    popUp.style.textAlign = "center";
+    popUp.style.maxWidth = "70%";
   
     // Copy attributes from the original link
     const clonedLink = document.createElement("a");
@@ -48,7 +50,9 @@ async function fetchConfigAndInitialize() {
   
     popUp.innerHTML = `
       <p>Do you want to visit this link?</p>
-      <div>${clonedLink.outerHTML}</div>
+      <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+        <div id="blockedLink" disabled style="max-width: 60%; overflow-y: auto; pointer-events: none;">${clonedLink.outerHTML}</div>
+      </div>
       <button id="confirmBtn" disabled>Confirm</button>
       <button id="cancelBtn">Cancel</button>
     `;
@@ -57,7 +61,11 @@ async function fetchConfigAndInitialize() {
   
     // Enable confirm button after 2 seconds
     const confirmBtn = popUp.querySelector("#confirmBtn");
-    setTimeout(() => (confirmBtn.disabled = false), 2000);
+    const blockedLink = popUp.querySelector("#blockedLink");
+    setTimeout(() => {
+      blockedLink.disabled = false;
+      confirmBtn.disabled = false
+    }, 2000);
   
     // Event listeners for confirm and cancel buttons
     confirmBtn.addEventListener("click", () => {
@@ -76,7 +84,7 @@ async function fetchConfigAndInitialize() {
     console.log("Current page URL:", currentPageURL);
   
     // Find the matching config for the current page
-    const matchedPattern = urlPatterns.find(({ pattern }) => partern.regex.test(currentPageURL));
+    const matchedPattern = urlPatterns.find((pattern) => pattern.regex.test(currentPageURL));
   
     if (!matchedPattern) {
       console.log("No matching pattern for this page.");
@@ -84,9 +92,15 @@ async function fetchConfigAndInitialize() {
     }
   
     console.log("Matched pattern:", matchedPattern);
+
+    if(matchedPattern === undefined) {
+      selector = "body";
+    } else {
+      selector = matchedPattern.selector;
+    }
   
     // Select elements based on the selector from the config
-    const matchingElements = document.querySelectorAll(matchedPattern.selector);
+    const matchingElements = document.querySelectorAll(selector);
     console.log("Matching elements:", matchingElements);
   
     matchingElements.forEach(element => {
