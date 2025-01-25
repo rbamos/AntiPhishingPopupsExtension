@@ -51,7 +51,7 @@ async function fetchConfigAndInitialize() {
     popUp.innerHTML = `
       <p>Do you want to visit this link?</p>
       <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
-        <div id="blockedLink" disabled style="max-width: 60%; overflow-y: auto; pointer-events: none;">${clonedLink.outerHTML}</div>
+        <div id="blockedLink" tabindex="-1" disabled style="max-width: 60%; overflow-y: auto; pointer-events: none;">${clonedLink.outerHTML}</div>
       </div>
       <button id="confirmBtn" disabled>Confirm</button>
       <button id="cancelBtn">Cancel</button>
