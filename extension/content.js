@@ -51,7 +51,7 @@ async function fetchConfigAndInitialize() {
     popUp.innerHTML = `
       <p>Do you want to visit this link?</p>
       <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
-        <div id="blockedLink" tabindex="-1" disabled style="max-width: 60%; overflow-y: auto; pointer-events: none;">${clonedLink.outerHTML}</div>
+        <div class="antiphishing-popup" id="blockedLink" tabindex="-1" disabled style="max-width: 60%; overflow-y: auto; pointer-events: none;">${clonedLink.outerHTML}</div>
       </div>
       <button id="confirmBtn" disabled>Confirm</button>
       <button id="cancelBtn">Cancel</button>
@@ -94,6 +94,7 @@ async function fetchConfigAndInitialize() {
     console.log("Matched pattern:", matchedPattern);
 
     if(matchedPattern === undefined) {
+      // Fall back to all links if we don't have a pattern defined
       selector = "body";
     } else {
       selector = matchedPattern.selector;
@@ -103,14 +104,32 @@ async function fetchConfigAndInitialize() {
     const matchingElements = document.querySelectorAll(selector);
     console.log("Matching elements:", matchingElements);
   
-    matchingElements.forEach(element => {
-      const links = element.querySelectorAll("a"); // Find all <a> tags within the matching element
-      links.forEach(link => {
-        console.log("Adding event listener to link:", link.href);
-        link.addEventListener("click", event => {
-          event.preventDefault();
-          createPopUp(link);
-        });
+    matchingElements.forEach(apply_link_intercept);
+
+    // Whenever a <a> tag is added to the page, apply the link intercept
+    // Also apply it whenever the href attribute of a <a> tag is changed
+    const _observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.type === "attributes" && mutation.attributeName === "href") {
+          apply_link_intercept(mutation.target);
+        } else if (mutation.type === "childList") {
+          mutation.addedNodes.forEach(node => {
+            if (node.tagName === "A" && !node.closest(".antiphishing-popup")) {
+              apply_link_intercept(node);
+            }
+          });
+        }
+      });
+    });
+  }
+
+  function apply_link_intercept(element) {
+    const links = element.querySelectorAll("a"); // Find all <a> tags within the matching element
+    links.forEach(link => {
+      console.log("Adding event listener to link:", link.href);
+      link.addEventListener("click", event => {
+        event.preventDefault();
+        createPopUp(link);
       });
     });
   }
