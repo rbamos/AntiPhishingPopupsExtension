@@ -110,12 +110,12 @@
 
     if (matchedPattern === undefined) {
       // Fall back to all links if we don't have a pattern defined
-      selector = "body";
+      selector = ":root";
     } else {
       selector = matchedPattern.selector;
     }
-    
-    selector = "body";
+
+    selector = ":root";
 
     // Select elements based on the selector from the config
     const matchingElements = document.querySelectorAll(selector);
@@ -128,12 +128,16 @@
     const _observer = new MutationObserver(mutations => {
       mutations.forEach(mutation => {
         if (mutation.type === "attributes" && mutation.attributeName === "href") {
-          apply_link_intercept(mutation.target);
+          if (popUp != null && !popUp.contains(node)) {
+            console.log("Skipping self application");
+          } else {
+            apply_link_intercept(mutation.target);
+          }
         } else if (mutation.type === "childList") {
           mutation.addedNodes.forEach(node => {
             // Don't apply the link intercept to the pop-up itself
             if (popUp != null && !popUp.contains(node)) {
-              // skip
+              console.log("Skipping self application");
             } else if (node.tagName === "A" && !node.closest(".antiphishing-popup")) {
               apply_link_intercept(node);
             }
@@ -147,6 +151,7 @@
 
   function apply_link_intercept(element) {
     const links = element.querySelectorAll("a"); // Find all <a> tags within the matching element
+    console.log("Links found:", links);
     links.forEach(link => {
       console.log("Adding event listener to link:", link.href);
       link.addEventListener("click", event => {
