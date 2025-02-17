@@ -42,7 +42,6 @@
 
     // Create the pop-up container
     popUp = document.createElement("div");
-    popUp.style.all = "initial";
     popUp.style.position = "fixed";
     popUp.style.top = "50%";
     popUp.style.left = "50%";
@@ -175,12 +174,12 @@
     //     popUp = null;
     //   }
     // });
-    // document.addEventListener("keydown", (event) => {
-    //   if (popUp != null && event.key === "Escape") {
-    //     popUp.remove();
-    //     popUp = null;
-    //   }
-    // });
+    document.addEventListener("keydown", (event) => {
+      if (popUp != null && event.key === "Escape") {
+        popUp.remove();
+        popUp = null;
+      }
+    });
 
   }
 
@@ -220,11 +219,11 @@
       }
 
       // If the link applies to the current page with a fragment identifier, don't apply the link intercept
-      // location = link.href.split("#")[0];
-      // if (location == window.location.href || location == '') {
-      //   console.log("Skipping fragment identifier link");
-      //   return;
-      // }
+      var location = link.href.split("#")[0];
+      if (location == window.location.href || location == '') {
+        console.log("Skipping fragment identifier link");
+        return;
+      }
 
       console.log("Adding event listener to link: ", link.href, link);
       link.addEventListener("click", event => {
