@@ -78,7 +78,7 @@
     cancelButton.style.color = '#000';
     cancelButton.style.fontFamily = 'inherit';
     cancelButton.style.fontSize = 'inherit';
-    
+
 
     linkdiv = popUp.querySelector("#linkdiv")
 
@@ -125,27 +125,41 @@
 
     // Whenever a <a> tag is added to the page, apply the link intercept
     // Also apply it whenever the href attribute of a <a> tag is changed
-    const _observer = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        if (mutation.type === "attributes" && mutation.attributeName === "href") {
+    const observer = new MutationObserver(mutationHandler);
+
+    // Also apply observer to all shadow roots. Do not apply it to any other elements
+    matchingElements.forEach((element) => {
+      observer.observe(element, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["href"]
+      });
+    }
+    );
+
+  }
+
+  function mutationHandler(mutations) {
+    mutations.forEach(mutation => {
+      if (mutation.type === "attributes" && mutation.attributeName === "href") {
+        if (popUp != null && !popUp.contains(node)) {
+          console.log("Skipping self application");
+        } else {
+          apply_link_intercept(mutation.target);
+        }
+      } else if (mutation.type === "childList") {
+        mutation.addedNodes.forEach(node => {
+          // Don't apply the link intercept to the pop-up itself
           if (popUp != null && !popUp.contains(node)) {
             console.log("Skipping self application");
-          } else {
-            apply_link_intercept(mutation.target);
+          } else if (node.tagName === "A" && !node.closest(".antiphishing-popup")) {
+            apply_link_intercept(node);
           }
-        } else if (mutation.type === "childList") {
-          mutation.addedNodes.forEach(node => {
-            // Don't apply the link intercept to the pop-up itself
-            if (popUp != null && !popUp.contains(node)) {
-              console.log("Skipping self application");
-            } else if (node.tagName === "A" && !node.closest(".antiphishing-popup")) {
-              apply_link_intercept(node);
-            }
-          });
-        } else {
-          console.log("Unhandled mutation type:", mutation);
-        }
-      });
+        });
+      } else {
+        console.log("Unhandled mutation type:", mutation);
+      }
     });
   }
 
@@ -156,7 +170,7 @@
       console.log("Adding event listener to link:", link.href);
       link.addEventListener("click", event => {
         event.preventDefault();
-        if(popUp != null) {
+        if (popUp != null) {
           popUp.remove();
           popUp = null;
         }
