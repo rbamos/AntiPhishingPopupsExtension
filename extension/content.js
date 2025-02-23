@@ -1,6 +1,7 @@
 (() => {
 
   var popUp = null;
+  var shadow = null;
 
   // Fetch configuration and initialize listeners
   async function fetchConfigAndInitialize() {
@@ -30,11 +31,17 @@
   function createPopUp(linkElement) {
     console.log("Creating pop-up for link:", linkElement.href);
 
+    if(shadow == null) {
+      popupContainer = document.createElement("div");
+      popupContainer.style.maxWidth = "100%";
+      document.body.appendChild(popupContainer);
+      shadow = popupContainer.attachShadow({ mode: "open" });
+    }
+
     const href = linkElement.href;
 
     // Create the pop-up container
     popUp = document.createElement("div");
-    popUp.style.all = "initial";
     popUp.style.position = "fixed";
     popUp.style.top = "50%";
     popUp.style.left = "50%";
@@ -63,7 +70,7 @@
       <button id="cancelBtn">Cancel</button>
     `;
 
-    document.body.appendChild(popUp);
+    shadow.appendChild(popUp);
 
     const cancelButton = popUp.querySelector("#cancelBtn");
 
@@ -91,12 +98,23 @@
       popUp.remove();
       popUp = null;
     });
+
+    console.log("Pop-up created:", popUp);
   }
 
   // Initialize click listeners based on URL patterns and selectors
   function initAntiPhishing(urlPatterns) {
     const currentPageURL = window.location.href;
     console.log("Current page URL:", currentPageURL);
+
+    // if the page is a configuration page, do not apply the link intercept
+    configuration_pages = ["about:", "chrome://"];
+    for (const page of configuration_pages) {
+      if (currentPageURL.startsWith(page)) {
+        console.log("Skipping link intercept for configuration page.");
+        return;
+      }
+    }
 
     // Find the matching config for the current page
     const matchedPattern = urlPatterns.find((pattern) => pattern.regex.test(currentPageURL));
@@ -127,33 +145,51 @@
     // Also apply it whenever the href attribute of a <a> tag is changed
     const observer = new MutationObserver(mutationHandler);
 
-    // Also apply observer to all shadow roots. Do not apply it to any other elements
+    const observerOptions = {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["href"]
+    };
+
     matchingElements.forEach((element) => {
-      observer.observe(element, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["href"]
-      });
+      observer.observe(element, observerOptions);
     }
     );
 
+
+    // Also apply observer to all shadow roots
+    // https://github.com/whatwg/dom/issues/1287
+    let originalAttachShadow = HTMLElement.prototype.attachShadow;
+    HTMLElement.prototype.attachShadow = function (...args) {
+      let node = originalAttachShadow.call(this, ...args);
+      observer.observe(node, observerOptions);
+      return node;
+    }
+
+    
+    // Close the pop-up if the user clicks outside of it or presses escape
+    // document.addEventListener("click", (event) => {
+    //   if (popUp != null && !popUp.contains(event.target)) {
+    //     popUp.remove();
+    //     popUp = null;
+    //   }
+    // });
+    document.addEventListener("keydown", (event) => {
+      if (popUp != null && event.key === "Escape") {
+        popUp.remove();
+        popUp = null;
+      }
+    });
   }
 
   function mutationHandler(mutations) {
     mutations.forEach(mutation => {
       if (mutation.type === "attributes" && mutation.attributeName === "href") {
-        if (popUp != null && !popUp.contains(node)) {
-          console.log("Skipping self application");
-        } else {
-          apply_link_intercept(mutation.target);
-        }
+        apply_link_intercept(mutation.target);
       } else if (mutation.type === "childList") {
         mutation.addedNodes.forEach(node => {
-          // Don't apply the link intercept to the pop-up itself
-          if (popUp != null && !popUp.contains(node)) {
-            console.log("Skipping self application");
-          } else if (node.tagName === "A" && !node.closest(".antiphishing-popup")) {
+          if (node.tagName === "A" && !node.closest(".antiphishing-popup")) {
             apply_link_intercept(node);
           }
         });
@@ -166,8 +202,30 @@
   function apply_link_intercept(element) {
     const links = element.querySelectorAll("a"); // Find all <a> tags within the matching element
     console.log("Links found:", links);
+
+    // Don't apply the link intercept to the pop-up itself
+    if (popUp != null && !popUp.contains(element)) {
+      console.log("Skipping self application");
+      return;
+    }
+
     links.forEach(link => {
-      console.log("Adding event listener to link:", link.href);
+      // Don't apply the link intercept to the pop-up itself
+      // We do this check twice in case the parent isn't part of the pop-up
+      // but the child is; this seems unlikely though
+      if (popUp != null && popUp.contains(link)) {
+        console.log("Skipping self application");
+        return;
+      }
+
+      // If the link applies to the current page with a fragment identifier, don't apply the link intercept
+      var location = link.href.split("#")[0];
+      if (location == window.location.href || location == '') {
+        console.log("Skipping fragment identifier link");
+        return;
+      }
+
+      console.log("Adding event listener to link: ", link.href, link);
       link.addEventListener("click", event => {
         event.preventDefault();
         if (popUp != null) {
